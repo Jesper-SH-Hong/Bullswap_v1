@@ -6,19 +6,17 @@ import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract Exchange {
-
     //member var. 상태.
     //ERC20 컨트랙트와 상호작용하기 위해 IERC20 인터페이스를 사용.
     IERC20 token;
 
-    // _token은 토큰 컨트랙트 주소. 
-    //IERC20()은 새로운 인스턴스의 생성이 아니라 _token에 배포된 컨트랙트가 ERC20 인터페이스를 따르고 있다면, 
+    // _token은 토큰 컨트랙트 주소.
+    //IERC20()은 새로운 인스턴스의 생성이 아니라 _token에 배포된 컨트랙트가 ERC20 인터페이스를 따르고 있다면,
     //지금 이 Exchange 컨트랙트가 상호작용 할 수 있게 해주는 것.
     constructor(address _token) {
         token = IERC20(_token);
         //SWAP pool 생성 시 이더리움과 어떤 토큰을 pair할 지 주소를 입력하는 것.
     }
-
 
     // 토큰을 넣지만 ETH도 페어로 받기 때문에 payable.
     // msg.sender는 보내는 사람의 주소. 나.
@@ -42,31 +40,45 @@ contract Exchange {
 
     // ETH -> ERC20 SWAP.
     // ETH를 받고 token을 뱉으니 payable
-    function ethToTokenSwap() public payable {
+    // _minTokens는 최소한의 토큰 수량. slippage 고려.
+    function ethToTokenSwap(uint256 _minTokens) public payable {
         uint256 inputAmount = msg.value;
-        // calculate amount out (zero fee).  it's CSMM for now. simple logic.
-        uint256 outputAmount = inputAmount;
+
+        //payable 키워드로 인해 이미 이 함수 실행 시 내 주소에서 ETH가 넘어온 상태.내 address에선 inputAmount만큼 빠진 것을 반영해야 함
+        //address(this).balance 찍어보면 swap시 input이 이미 추가되어 있음.
+
+        //output은 이 Contract의 토큰 잔고.
+        uint256 outputAmount = getOutputAmount(
+            inputAmount,
+            address(this).balance - inputAmount,
+            token.balanceOf(address(this))
+        );
+
+        require(outputAmount >= _minTokens, "Insufficient outputAmount");
+
         //transfer token out. IERC20 인터페이스야 msg.sender에게 output만큼 보내라.
         IERC20(token).transfer(msg.sender, outputAmount);
     }
 
-    function getPrice(
-        uint256 inputReserve,
-        uint256 outputReserve
-    ) public pure returns (uint256) {
-        uint256 numerator = inputReserve;
-        uint256 denominator = outputReserve;
-        return numerator / denominator;
-    }
+    ////SMM
+    // function getPrice(
+    //     uint256 inputReserve,
+    //     uint256 outputReserve
+    // ) public pure returns (uint256) {
+    //     uint256 numerator = inputReserve;
+    //     uint256 denominator = outputReserve;
+    //     return numerator / denominator;
+    // }
 
     //inputReserve는 풀의 input 토큰 잔고(x), outputReserve는 output 토큰 잔고(y). inputAmount가 delta x.
     //delta y를 찾는 함수.
-    function getOutputAmount(uint256 inputAmount, uint256 inputReserve, uint256 outputReserve) public pure returns (uint256) {
+    function getOutputAmount(
+        uint256 inputAmount,
+        uint256 inputReserve,
+        uint256 outputReserve
+    ) public pure returns (uint256) {
         uint256 numerator = inputAmount * outputReserve;
         uint256 denominator = inputReserve + inputAmount;
         return numerator / denominator;
     }
-
-
-    
 }

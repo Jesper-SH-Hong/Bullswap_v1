@@ -51,14 +51,14 @@ describe("Exchange", () => {
             await token.approve(exchange.address, toWei(1000));
             await exchange.addLiquidity(toWei(1000), { value: toWei(1000) });
             
+            //GRAY
             const tokenReserve = await token.balanceOf(exchange.address);
             const etherReserve = await getBalance(exchange.address);
 
             // GRAY Price
-            // Expect 1ETH per 1GRAY
-            expect(
-                (await exchange.getPrice(tokenReserve, etherReserve))
-            ).to.eq(1);
+            // expect(
+            //     (await exchange.getPrice(tokenReserve, etherReserve))
+            // ).to.eq(1);
         })
     })
 
@@ -66,26 +66,35 @@ describe("Exchange", () => {
     describe("EthToTokenSwap", async() => {
         it("correct EthToTokenSwap", async() => {
 
-            await token.approve(exchange.address, toWei(1000));
-            await exchange.addLiquidity(toWei(1000), { value: toWei(1000) });
+            await token.approve(exchange.address, toWei(4000));
+
+            //excnage 계약에 4000 GRAY와 1000 ETH를 넣어서 Pool 형성
+            await exchange.addLiquidity(toWei(4000), { value: toWei(1000) });
             
-            //SWAP은 새로운 유저가 온다 가정. 1개의 이더를 스왑.
-            await exchange.connect(user).ethToTokenSwap({ value: toWei(1) });
-            //유저는 token 즉 gray 밸런스가 1개겠지.
-            expect(
-                (toEther(await token.balanceOf(user.address)))
-            ).to.equal("1.0");
-            // GRAY 잔고는 exchange 계약에선 1개를 유저와 스왑했으니 999개 남았을 거야.
-            // 문제는 GAS FEE로 항상 에러날 수 있음.. 9998999....blabla
-            expect(
-                (toEther(await token.balanceOf(exchange.address)))
-            ).to.eq("999.0");
+            //어떤 유저가 SWAP을 하고자 1ETH를 보내면 몇 그레이 받을까.
+            //현재 풀 상태가 4:1이니 4000*1/(1000+1) 즉 3.996을 받으면 최선이나,
+            //slippage 고려해서 최소 3.99 Token은 풀이 보유해야 함을 상정.
+            await exchange.connect(user).ethToTokenSwap(toWei(3.99), {value: toWei(1)});
+
+            console.log(toEther(await token.balanceOf(user.address)));
 
 
-            //getBalance는 항상 이더 잔고를 가져오는 함수
-            expect(
-                (toEther(await getBalance(exchange.address)))
-            ).to.eq("1001.0");
+            //이하 x + y = k인 CSMM 로직...
+            // //유저는 token 즉 gray 밸런스가 1개겠지.
+            // expect(
+            //     (toEther(await token.balanceOf(user.address)))
+            // ).to.equal("1.0");
+            // // GRAY 잔고는 exchange 계약에선 1개를 유저와 스왑했으니 999개 남았을 거야.
+            // // 문제는 GAS FEE로 항상 에러날 수 있음.. 9998999....blabla
+            // expect(
+            //     (toEther(await token.balanceOf(exchange.address)))
+            // ).to.eq("999.0");
+
+
+            // //getBalance는 항상 이더 잔고를 가져오는 함수
+            // expect(
+            //     (toEther(await getBalance(exchange.address)))
+            // ).to.eq("1001.0");
             
         })
     })
@@ -107,4 +116,7 @@ describe("Exchange", () => {
             console.log(toEther(outputAmount));
         })
     })
+
+
+    
 })
