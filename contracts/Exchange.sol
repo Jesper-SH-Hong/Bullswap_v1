@@ -39,8 +39,8 @@ contract Exchange {
     // }
 
     // ETH -> ERC20 SWAP.
-    // ETH를 받고 token을 뱉으니 payable
-    // _minTokens는 최소한의 토큰 수량. slippage 고려.
+    // ETH를 받고 token을 뱉으니 payable, value는 {value: }로 줄거라 param으로서 정의 x.
+    // _minTokens는 Pool이 갖추고 있을 최소한의 토큰 수량. 지준금. slippage 고려.
     function ethToTokenSwap(uint256 _minTokens) public payable {
         uint256 inputAmount = msg.value;
 
@@ -60,15 +60,28 @@ contract Exchange {
         IERC20(token).transfer(msg.sender, outputAmount);
     }
 
-    ////SMM
-    // function getPrice(
-    //     uint256 inputReserve,
-    //     uint256 outputReserve
-    // ) public pure returns (uint256) {
-    //     uint256 numerator = inputReserve;
-    //     uint256 denominator = outputReserve;
-    //     return numerator / denominator;
-    // }
+    // ERC20 -> ETH SWAP.
+    // 여긴 Eth가 아니라 ERC20을 받아올거라 인자로서 명시해야 함.
+    // payable은 Eth만 당겨오는 특성이라
+    // 여기선 contract 잔고에서 미리 깎을 필요 없음. 애초에 msg.value; 안 쓰니 payable도 제외.
+    function TokenToEthSwap(uint256 _tokenSold, uint256 _minEth) public {
+
+        //output은 이 Contract의 토큰 잔고.
+        uint256 outputAmount = getOutputAmount(
+            _tokenSold,
+            token.balanceOf(address(this)), 
+            address(this).balance
+        );
+
+        require(outputAmount >= _minEth, "Insufficient outputAmount");
+
+        //Contract야 _tokenSold만큼 땅겨와라.
+        IERC20(token).transferFrom(msg.sender, address(this), _tokenSold);
+
+
+        //기본적으로 msg.sender는 address 타입, 즉 non-payable 주소입니다. 이더를 msg.sender에게 보내려면 이 주소를 payable 타입으로 변환해줘야 합니다.
+        payable(msg.sender).transfer(outputAmount);
+    }
 
     //inputReserve는 풀의 input 토큰 잔고(x), outputReserve는 output 토큰 잔고(y). inputAmount가 delta x.
     //delta y를 찾는 함수.

@@ -100,7 +100,7 @@ describe("Exchange", () => {
     })
 
 
-     describe("getOutputAmount", async() => {
+    describe("getOutputAmount", async() => {
         it("correct getOutputAmount", async() => {
             //4:1 ratio for GRAY:ETH for testing
             await token.approve(exchange.address, toWei(4000));
