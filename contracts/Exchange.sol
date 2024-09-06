@@ -58,4 +58,15 @@ contract Exchange {
         uint256 denominator = outputReserve;
         return numerator / denominator;
     }
+
+    //inputReserve는 풀의 input 토큰 잔고(x), outputReserve는 output 토큰 잔고(y). inputAmount가 delta x.
+    //delta y를 찾는 함수.
+    function getOutputAmount(uint256 inputAmount, uint256 inputReserve, uint256 outputReserve) public pure returns (uint256) {
+        uint256 numerator = inputAmount * outputReserve;
+        uint256 denominator = inputReserve + inputAmount;
+        return numerator / denominator;
+    }
+
+
+    
 }

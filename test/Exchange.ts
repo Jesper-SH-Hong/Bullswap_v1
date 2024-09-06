@@ -89,4 +89,22 @@ describe("Exchange", () => {
             
         })
     })
+
+
+     describe("getOutputAmount", async() => {
+        it("correct getOutputAmount", async() => {
+            //4:1 ratio for GRAY:ETH for testing
+            await token.approve(exchange.address, toWei(4000));
+            await exchange.addLiquidity(toWei(4000), { value: toWei(1000) });
+            //1ETH to how many GRAY
+            const outputAmount = await exchange.getOutputAmount(toWei(1), getBalance(exchange.address), token.balanceOf(exchange.address));
+            
+            //slippage... expected 4 GRAY but got 3.996 GRAY
+            //극단적으로 10만 ETH해도, xy = k 곡선상 GRAY pool이 0로 고갈되진 못함.
+            //유동성 k가 크거나, 거래 input이 작아야 slippage가 작아짐.
+            //1000ETH 교환하면 4000GRAY 아닌 2000개 밖에 못 받음..
+            console.log("outputAmount: ", outputAmount);
+            console.log(toEther(outputAmount));
+        })
+    })
 })
