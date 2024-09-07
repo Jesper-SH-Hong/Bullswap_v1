@@ -63,6 +63,29 @@ describe("Exchange", () => {
         });
       });
 
+      describe("removeLiquidity", async () => {
+        it("remove liquidity", async () => {
+          await token.approve(exchange.address, toWei(500));
+          await exchange.addLiquidity(toWei(500), { value: toWei(1000) });
+          expect(await getBalance(exchange.address)).to.equal(toWei(1000));
+          expect(await token.balanceOf(exchange.address)).to.equal(toWei(500));
+
+          await token.approve(exchange.address, toWei(100));
+          await exchange.addLiquidity(toWei(100), { value: toWei(200) });
+
+          //v1은 ETH 기준으로 LP이니, 전체 Liquidity가 1200. 그것도 다 내가 넣은 거.
+          expect(await getBalance(exchange.address)).to.equal(toWei(1200));
+          expect(await token.balanceOf(exchange.address)).to.equal(toWei(600));
+
+          //그중 600개의 LP를 제거하면, 풀에도 1200:600 => 600:300 (동일 비율)로 남아야 함.
+          await exchange.removeLiquidity(toWei(600));
+          expect(await getBalance(exchange.address)).to.equal(toWei(600));
+          expect(await token.balanceOf(exchange.address)).to.equal(toWei(300));
+
+
+        });
+      });
+
     describe("getTokenPrice", async() => {
         it("correct get Token Price", async() => {
             await token.approve(exchange.address, toWei(1000));

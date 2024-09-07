@@ -23,7 +23,7 @@ contract Exchange is ERC20 {
         uint256 totalLiquidity = totalSupply();
 
         if (totalLiquidity > 0) {
-            //ETH와 페어로 공급되는 토큰의 양은 1:1 비율로 공급되어 풀의 비율을 맞춰야 함.
+            //ETH와 페어인 토큰 또한 기존 풀의 비율을 유지할 만큼의 양을 공급해야 함.
 
             uint256 ethReserve = address(this).balance - msg.value;
             uint256 tokenReserve = token.balanceOf(address(this));
@@ -40,9 +40,6 @@ contract Exchange is ERC20 {
             uint256 liquidityMinted = totalLiquidity * msg.value / ethReserve;
             //민팅. 발행되는 LP토큰
             _mint(msg.sender, liquidityMinted);
-
-
-
 
         } else {
             //LP토큰 전무. 최초. 유동성이 없는 케이스.
@@ -61,11 +58,18 @@ contract Exchange is ERC20 {
     }
 
     //유동성 제거. 내가 LP 공급후 받았던 LP 토큰 반납. => 이 컨트랙트는 해당 LP 토큰 소각
-    //추후 구현 예정.
-    // function removeLiquidity() public {
-    //     msg.sender.transfer(ethAmount);
-    //     token.transfer(msg.sender, _tokenAmount);
-    // }
+    function removeLiquidity(uint256 _lpTokenAmount) public {
+        uint256 totalLiquidity = totalSupply();
+        uint256 ethToReceive = _lpTokenAmount * address(this).balance / totalLiquidity;
+        uint256 tokenToReceive = _lpTokenAmount * token.balanceOf(address(this)) / totalLiquidity;
+
+        //해당 주소의 토큰 destroy.
+        _burn(msg.sender, _lpTokenAmount);
+
+        //sender, 즉 나에게 이더 보내주쇼
+        payable(msg.sender).transfer(ethToReceive);
+        token.transfer(msg.sender, tokenToReceive);
+    }
 
     // ETH -> ERC20 SWAP.
     // ETH를 받으니 payable, 그를 바탕으로 Token(Gray) 뱉을 것
