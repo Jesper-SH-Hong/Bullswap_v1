@@ -76,7 +76,7 @@ contract Exchange is ERC20 {
     function ethToTokenSwap(uint256 _minTokens) public payable {
         uint256 inputAmount = msg.value;
         //output은 이 Contract의 토큰 잔고.
-        uint256 outputAmount = getOutputAmount(
+        uint256 outputAmount = getOutputAmountWithFee(
             inputAmount,
             //Payable keyword already included msg.value in address(this).balance.
             address(this).balance - inputAmount,
@@ -92,7 +92,7 @@ contract Exchange is ERC20 {
     // ERC20 -> ETH SWAP.
     function TokenToEthSwap(uint256 _tokenSold, uint256 _minEth) public {
         //output은 이 Contract의 토큰 잔고.
-        uint256 outputAmount = getOutputAmount(
+        uint256 outputAmount = getOutputAmountWithFee(
             _tokenSold,
             token.balanceOf(address(this)),
             address(this).balance
@@ -116,6 +116,21 @@ contract Exchange is ERC20 {
     ) public pure returns (uint256) {
         uint256 numerator = inputAmount * outputReserve;
         uint256 denominator = inputReserve + inputAmount;
+        return numerator / denominator;
+    }
+
+    //fee 1%
+    function getOutputAmountWithFee(
+        uint256 inputAmount,
+        uint256 inputReserve,
+        uint256 outputReserve
+    ) public pure returns (uint256) {
+        //fee 1%
+        uint256 inputAmountWithFee = inputAmount * 99;
+        uint256 numerator = inputAmountWithFee * outputReserve;
+        //교환 비율 맞추기 위해. delta x를 각 reserve에 곱해줌.
+        uint256 denominator = inputReserve * 100 + inputAmountWithFee;
+        //1%를 덜 주면서 풀의 각 Reserve는 더 느는 것.
         return numerator / denominator;
     }
 }
