@@ -6,13 +6,17 @@ import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
+import "./interfaces/IFactory.sol";
+
 contract Exchange is ERC20 {
     IERC20 token;
+    IFactory factory; //배포된 컨트랙트의 함수를 읽어올 땐 인터페이스 정의해서 얻어와야 함.
 
     //LP토큰의 이름과 심볼. mint, burn 시 어차피 이름 ,심볼 안 쓰므로 걍 겹쳐도되서 일단 상수로 해도 됨.
     constructor(address _token) ERC20("Gray Uniswap V2", "GUNI-V2") {
         token = IERC20(_token);
         //SWAP pool 생성 시 ETH과 어떤 토큰을 pair할 지 주소를 입력하는 것.
+        factory = IFactory(msg.sender);
     }
 
     // Frontend: slippage included. 최대 얼만큼을 pool에 넣을지.
