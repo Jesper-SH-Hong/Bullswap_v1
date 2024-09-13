@@ -7,7 +7,9 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import "./interfaces/IFactory.sol";
+import "./interfaces/IExchange.sol";
 
+// Exchange handles the liquidity pool and token swaps.
 contract Exchange is ERC20 {
     IERC20 token;
     IFactory factory; //배포된 컨트랙트의 함수를 읽어올 땐 인터페이스 정의해서 얻어와야 함.
@@ -32,7 +34,7 @@ contract Exchange is ERC20 {
             uint256 ethReserve = address(this).balance - msg.value;
             uint256 tokenReserve = token.balanceOf(address(this));
             //공급된 ETH에 맞춰 채워야할 Token량
-            uint256 tokenAmount = msg.value * tokenReserve / ethReserve;
+            uint256 tokenAmount = (msg.value * tokenReserve) / ethReserve;
 
             //내가 Pool에 맞춰서 송금해야할 토큰량이, 계산된 토큰량보다 적으면 안됨.
             require(_maxToken >= tokenAmount, "Insufficient tokenAmount");
@@ -41,10 +43,9 @@ contract Exchange is ERC20 {
             token.transferFrom(msg.sender, address(this), tokenAmount);
 
             //내가 보내는 ETH가 현재풀에서 얼마나 차지를 하는지. 그에 맞게 LP토큰을 발행받음.
-            uint256 liquidityMinted = totalLiquidity * msg.value / ethReserve;
+            uint256 liquidityMinted = (totalLiquidity * msg.value) / ethReserve;
             //민팅. 발행되는 LP토큰
             _mint(msg.sender, liquidityMinted);
-
         } else {
             //LP토큰 전무. 최초. 유동성이 없는 케이스.
 
@@ -64,8 +65,10 @@ contract Exchange is ERC20 {
     //유동성 제거. 내가 LP 공급후 받았던 LP 토큰 반납. => 이 컨트랙트는 해당 LP 토큰 소각
     function removeLiquidity(uint256 _lpTokenAmount) public {
         uint256 totalLiquidity = totalSupply();
-        uint256 ethToReceive = _lpTokenAmount * address(this).balance / totalLiquidity;
-        uint256 tokenToReceive = _lpTokenAmount * token.balanceOf(address(this)) / totalLiquidity;
+        uint256 ethToReceive = (_lpTokenAmount * address(this).balance) /
+            totalLiquidity;
+        uint256 tokenToReceive = (_lpTokenAmount *
+            token.balanceOf(address(this))) / totalLiquidity;
 
         //해당 주소의 토큰 destroy.
         _burn(msg.sender, _lpTokenAmount);
@@ -78,7 +81,20 @@ contract Exchange is ERC20 {
     // ETH -> ERC20 SWAP.
     // ETH를 받으니 payable, 그를 바탕으로 Token(Gray) 뱉을 것
     function ethToTokenSwap(uint256 _minTokens) public payable {
+        ethToToken(_minTokens, msg.sender);
+    }
+
+    //ETH -> ERC20 SWAP. ERC20-ERC20 SWAP 시 BULL이 중간 GRAY/ETH로 오배송 되는 문제 해결.
+    function ethToTokenTransfer(
+        uint _minTokens,
+        address _recipient
+    ) public payable {
+        ethToToken(_minTokens, _recipient);
+    }
+
+    function ethToToken(uint _minTokens, address _recipient) private {
         uint256 inputAmount = msg.value;
+
         //output은 이 Contract의 토큰 잔고.
         uint256 outputAmount = getOutputAmountWithFee(
             inputAmount,
@@ -89,12 +105,11 @@ contract Exchange is ERC20 {
 
         require(outputAmount >= _minTokens, "Insufficient outputAmount");
 
-        //transfer token out. IERC20 인터페이스야 msg.sender에게 output만큼 보내라.
-        IERC20(token).transfer(msg.sender, outputAmount);
+        IERC20(token).transfer(_recipient, outputAmount);
     }
 
     // ERC20 -> ETH SWAP.
-    function TokenToEthSwap(uint256 _tokenSold, uint256 _minEth) public {
+    function tokenToEthSwap(uint256 _tokenSold, uint256 _minEth) public {
         //output은 이 Contract의 토큰 잔고.
         uint256 outputAmount = getOutputAmountWithFee(
             _tokenSold,
@@ -109,6 +124,42 @@ contract Exchange is ERC20 {
 
         //기본적으로 msg.sender는 address 타입, 즉 non-payable 주소입니다. 이더를 msg.sender에게 보내려면 이 주소를 payable 타입으로 변환해줘야 합니다.
         payable(msg.sender).transfer(outputAmount);
+    }
+
+    function tokenToTokenSwap(
+        uint256 _tokenSold,
+        //최종 스왑 시 받는 ERC20 Token값. FE에서 계산되서 올 것.
+        uint256 _minTokenBought,
+        //중간 swap 시 조건으로 필요한 최소 Eth량.
+        uint256 _minEthBought,
+        address _tokenAddress
+    ) public {
+        //현 상태에선 내가 교환받고자 하는 ERC20(BULL)의 exchange 컨트랙트 주소를 알 수 없음.
+        //exchange 주소는 factory contract를 거쳐 얻어옴.
+        address toTokenExchangeAddress = factory.getExchange(_tokenAddress);
+
+        //ERC20 ->ETH. Uniswap V1: ERC20 -> ETH(not actual swap. internal calc.) -> ERC20
+        //중간 SWAP 시 ETH 교환 예산량.
+        uint256 ethOutputAmount = getOutputAmount(
+            _tokenSold,
+            token.balanceOf(address(this)),
+            address(this).balance
+        );
+        //FE UI로부터 고지한 최소한의 Eth 갯수보다 커야.
+        require(ethOutputAmount >= _minEthBought, "Insufficient outputAmount");
+
+        //GRAY를 GRAY->ETH exchange 컨트랙트로 보냄.
+        require(token.transferFrom(msg.sender, address(this), _tokenSold));
+
+        //기존의 ethToToken은 IERC20 인터페이스야 msg.sender에게 output만큼 보내라.였음.
+        //문제는 BULL 토큰을 받기 위해선 지금 이 컨트랙트에서 BULL-ETH 스왑 함수를 호출할 방법이 없음.
+        //새로운 인터페이스를 정의, 호출해서 거기서 스왑 함수를 호출해야 함.
+        // 그래서 IERC20(token).transfer(msg.sender, outputAmount); 말고 IExchange.
+        //ETH <-> BULL exchange의 주소임.
+        //msg.sender는 이 tokenToToken의 호출자. 즉 유저.
+        IExchange(toTokenExchangeAddress).ethToTokenTransfer{
+            value: ethOutputAmount
+        }(_minTokenBought, msg.sender);
     }
 
     //inputReserve는 풀의 input 토큰 잔고(x), outputReserve는 output 토큰 잔고(y). inputAmount가 delta x.
