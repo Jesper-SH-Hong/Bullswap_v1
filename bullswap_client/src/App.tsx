@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import logo from "./logo.svg";
 import "./App.css";
 import { useWeb3React } from "@web3-react/core";
@@ -12,6 +12,10 @@ import { Liquidity } from "./pages/Liquidity/Liquidity";
 function App() {
   //chainId: whch blockchain network the user is connected to mainnet / testnet?
   const { chainId, account, active, activate, deactivate } = useWeb3React();
+
+  useEffect(() => {
+    console.log("Active state changed:", active);
+  }, [active]);
 
   function handleConnect() {
     if (active) {
@@ -43,8 +47,15 @@ function App() {
       <BrowserRouter>
         <NavBar />
         <Routes>
-          <Route path="/" element={<Swap></Swap>}>Swap</Route>
-          <Route path="/liquidity" element={<Liquidity></Liquidity>}>Liquidity</Route>
+          <Route path="/" element={<Swap></Swap>}>
+            Swap
+          </Route>
+          <Route
+            path="/liquidity"
+            element={<Liquidity network={chainId} active={active}></Liquidity>}
+          >
+            Liquidity
+          </Route>
         </Routes>
       </BrowserRouter>
     </div>
