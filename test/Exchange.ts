@@ -22,6 +22,8 @@ describe("Exchange", () => {
         //기본적으로 10,000개의 Ether를 가지고 있음.
         [owner, user] = await ethers.getSigners();
         //Token 컨트랙트 배포
+        //스마트 계약을 컴파일하면, 컴파일된 계약의 ABI, 바이트코드가 포함된 JSON 파일이 생성됨. 컨트랙트 이름으로 artifacts/contracts/Token.sol/Token.json 같은 경로에 JSON 파일이 생성.
+        //즉 컴파일된 smart contract들이며, 그 contract의 이름이 내가 컴파일한 sol파일의 컨트랙트명(클래스명)임.
         const TokenFactory = await ethers.getContractFactory("Token");
         //GrayToken이라는 이름의 토큰을 1,000,000개 배포
         token = await TokenFactory.deploy("GrayToken", "GRAY", toWei(1000000));
@@ -158,5 +160,65 @@ describe("Exchange", () => {
     })
 
 
-    
+     describe("tokenToTokenSwap", async () => {
+        it("correct tokenToTokenSwap", async () => {
+            //기본적으로 10,000개의 Ether를 가지고 있음.
+            [owner, user] = await ethers.getSigners();
+
+            //getContractFactory() returns a JS obj that represents a smart contract factory. 내가 작성한 contract를 가져옴. Factory의 factory로서 쓰일 것.
+            const FactoryFactory = await ethers.getContractFactory("Factory");
+            const factory = await FactoryFactory.deploy();
+            //factory 컨트랙트 deploy. 이래야 Exchange의 생성자에 들어가는 factory 주소를 알려줄 수 있음.
+            await factory.deployed();
+
+            //create GRAY Token
+            const TokenFactory = await ethers.getContractFactory("Token");
+            const token1 = await TokenFactory.deploy("GrayToken", "GRAY", toWei(1010));  //1000 + 10swap
+            await token1.deployed();
+
+            // create BULL Token
+            const token2 = await TokenFactory.deploy("BullToken", "BULL", toWei(1000));
+            await token2.deployed();
+
+            // create/deploy gray/eth pair exchange contract
+            const exchangeAddress = await factory.callStatic.createExchange(token1.address)
+            await factory.createExchange(token1.address);
+
+            // create bull/eth pair exchange contract
+            const exchange2Address = await factory.callStatic.createExchange(token2.address);
+            await factory.createExchange(token2.address);
+            
+
+            // add liquidity 1000/1000 to each exchange contract
+            await token1.approve(exchangeAddress, toWei(1000));
+            await token2.approve(exchange2Address, toWei(1000));
+
+            const ExchangeFactory = await ethers.getContractFactory("Exchange");
+            //attach를 통해 이미 배포된 exchange 컨트랙트를 Exchange 찍어낼 팩토리에 연결
+            //각각의 페어 exchange에 유동성공급이 1000, 1000 완료됨.
+            await ExchangeFactory.attach(exchangeAddress).addLiquidity(toWei(1000), {value: toWei(1000)})
+            await ExchangeFactory.attach(exchange2Address).addLiquidity(toWei(1000), {value: toWei(1000)})
+
+            //swap test를 위해 10개 다시 approve.
+            await token1.approve(exchangeAddress, toWei(10));
+            //처음 투입. GRAY 10, 최소한 받을 Bull, 중간 swap 시 이더 교환 예상량, 받을 토큰 계약(Bull)의 주소
+            await ExchangeFactory.attach(exchangeAddress).tokenToTokenSwap(toWei(10), toWei(9), toWei(9), token2.address);
+
+            //BULL token balance of user
+            //GRAY, ETH 보냈는데 왜 0냐.
+            console.log(toEther(await token2.balanceOf(owner.address)));
+            //Exchange가 다 BULL 토큰 갖고 있음.
+            console.log(toEther(await token2.balanceOf(exchangeAddress)));
+
+            //기존 ethToToken 구현에서 msg.sender에게 보내라고 했는데, 
+            //GRAY/ETH 컨트랙트가 IExchange 인터페이스로 toTokenExchangeAddress, 즉 BULL/ETH를 호출한 거임.
+            //그래서 Gray/Eth exchange 컨트랙트가 msg.sender임.
+
+            //이것의 수정을 위해 ethToTokenSwap을 ethToTokenTransfer로 수정, 전송받을 주소 명시.
+
+        });
+    });
+
+
+
 })
