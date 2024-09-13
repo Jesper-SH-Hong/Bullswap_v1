@@ -9,6 +9,27 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "./interfaces/IFactory.sol";
 import "./interfaces/IExchange.sol";
 
+event TokenPurchase(
+    address indexed buyer,
+    uint256 indexed eth_sold,
+    uint256 indexed tokens_bought
+);
+event EthPurchase(
+    address indexed buyer,
+    uint256 indexed tokens_sold,
+    uint256 indexed eth_bought
+);
+event AddLiquidity(
+    address indexed provider,
+    uint256 indexed eth_amount,
+    uint256 indexed token_amount
+);
+event RemoveLiquidity(
+    address indexed provider,
+    uint256 indexed eth_amount,
+    uint256 indexed token_amount
+);
+
 // Exchange handles the liquidity pool and token swaps.
 contract Exchange is ERC20 {
     IERC20 token;
@@ -64,6 +85,8 @@ contract Exchange is ERC20 {
 
     //유동성 제거. 내가 LP 공급후 받았던 LP 토큰 반납. => 이 컨트랙트는 해당 LP 토큰 소각
     function removeLiquidity(uint256 _lpTokenAmount) public {
+        require(_lpTokenAmount > 0);
+
         uint256 totalLiquidity = totalSupply();
         uint256 ethToReceive = (_lpTokenAmount * address(this).balance) /
             totalLiquidity;
@@ -89,22 +112,23 @@ contract Exchange is ERC20 {
         uint _minTokens,
         address _recipient
     ) public payable {
+        require(_recipient != address(0), "Invalid recipient address");
         ethToToken(_minTokens, _recipient);
     }
 
+    //호출하는 함수들이 payable들이라 딱히 이 함수가 payable이 아니어도 됨. 아니라면 얘가 payable.
     function ethToToken(uint _minTokens, address _recipient) private {
         uint256 inputAmount = msg.value;
 
-        //output은 이 Contract의 토큰 잔고.
         uint256 outputAmount = getOutputAmountWithFee(
             inputAmount,
-            //Payable keyword already included msg.value in address(this).balance.
+            //Payable keyword already included msg.value(=inputAmount) in address(this).balance.
             address(this).balance - inputAmount,
             token.balanceOf(address(this))
         );
 
         require(outputAmount >= _minTokens, "Insufficient outputAmount");
-
+        emit TokenPurchase(_recipient, msg.value, outputAmount);
         IERC20(token).transfer(_recipient, outputAmount);
     }
 
