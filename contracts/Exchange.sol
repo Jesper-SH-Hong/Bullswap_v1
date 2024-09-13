@@ -9,29 +9,29 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "./interfaces/IFactory.sol";
 import "./interfaces/IExchange.sol";
 
-event TokenPurchase(
-    address indexed buyer,
-    uint256 indexed eth_sold,
-    uint256 indexed tokens_bought
-);
-event EthPurchase(
-    address indexed buyer,
-    uint256 indexed tokens_sold,
-    uint256 indexed eth_bought
-);
-event AddLiquidity(
-    address indexed provider,
-    uint256 indexed eth_amount,
-    uint256 indexed token_amount
-);
-event RemoveLiquidity(
-    address indexed provider,
-    uint256 indexed eth_amount,
-    uint256 indexed token_amount
-);
-
 // Exchange handles the liquidity pool and token swaps.
 contract Exchange is ERC20 {
+    event TokenPurchase(
+        address indexed buyer,
+        uint256 indexed eth_sold,
+        uint256 indexed tokens_bought
+    );
+    event EthPurchase(
+        address indexed buyer,
+        uint256 indexed tokens_sold,
+        uint256 indexed eth_bought
+    );
+    event AddLiquidity(
+        address indexed provider,
+        uint256 indexed eth_amount,
+        uint256 indexed token_amount
+    );
+    event RemoveLiquidity(
+        address indexed provider,
+        uint256 indexed eth_amount,
+        uint256 indexed token_amount
+    );
+
     IERC20 token;
     IFactory factory; //배포된 컨트랙트의 함수를 읽어올 땐 인터페이스 정의해서 얻어와야 함.
 

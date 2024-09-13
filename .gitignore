@@ -127,5 +127,4 @@ cache
 artifacts
 
 yarn.lock
-scripts/deploy.ts
 hardhat.config.ts
