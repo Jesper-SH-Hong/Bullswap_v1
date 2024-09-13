@@ -47,7 +47,7 @@ function App() {
       <BrowserRouter>
         <NavBar />
         <Routes>
-          <Route path="/" element={<Swap></Swap>}>
+          <Route path="/" element={<Swap network={chainId}></Swap>}>
             Swap
           </Route>
           <Route
