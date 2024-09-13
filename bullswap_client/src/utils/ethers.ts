@@ -82,6 +82,6 @@ export function fromWei(to: BigNumber) {
 }
 
 //multiply by 10^18 and return as string
-export function toWei(to: BigNumber) {
-  return ethers.utils.formatEther(to);
+export function toWei(to: string) {
+  return ethers.utils.parseEther(to);
 }

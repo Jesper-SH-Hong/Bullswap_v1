@@ -1,8 +1,13 @@
 import { Link } from "react-router-dom";
 import { Button, InputAdornment, TextField } from "@mui/material";
 import SwapVerticalCircleIcon from "@mui/icons-material/SwapVerticalCircle";
-import { useState } from "react";
-import { fromWei, getExchangeContract, onEthToTokenSwap } from "../../utils/ethers";
+import { useEffect, useState } from "react";
+import {
+  fromWei,
+  getExchangeContract,
+  onEthToTokenSwap,
+  toWei,
+} from "../../utils/ethers";
 import {
   calculateSlippage,
   getEthToTokenOutputAmount,
@@ -21,10 +26,10 @@ export function Swap(props: any) {
     setInputValue(event.target.value);
   }
 
-  // function onSwap() {
-  //   //cpmm calculation logic
-  //   onEthToTokenSwap();
-  // }
+  function onSwap() {
+    //cpmm calculation logic
+    onEthToTokenSwap(toWei(inputValue), toWei(outputValue)  , GRAY_ADDRESS, networkId);
+  }
 
   async function getOutputAmount() {
     const output = await getEthToTokenOutputAmount(
@@ -35,6 +40,12 @@ export function Swap(props: any) {
     const outputWithSlippage = calculateSlippage(slippage, output).minimum; //_minToken!
     setOutputValue(fromWei(outputWithSlippage)); //divide by 10^18
   }
+
+  useEffect(() => {
+    getOutputAmount();
+  }, [inputValue]);
+
+
 
   return (
     <div>
