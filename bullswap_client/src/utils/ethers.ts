@@ -76,6 +76,12 @@ export async function getAccountBalance(accountAddress: string) {
   };
 }
 
+//divide by 10^18 and return as string
 export function fromWei(to: BigNumber) {
+  return ethers.utils.formatEther(to);
+}
+
+//multiply by 10^18 and return as string
+export function toWei(to: BigNumber) {
   return ethers.utils.formatEther(to);
 }
