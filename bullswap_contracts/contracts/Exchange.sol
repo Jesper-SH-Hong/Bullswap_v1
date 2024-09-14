@@ -44,14 +44,16 @@ contract Exchange is ERC20 {
 
     // Frontend: slippage included. 최대 얼만큼을 pool에 넣을지.
     function addLiquidity(uint256 _maxToken) public payable {
-        //exchange 컨트랙트의 전체 LP토큰 liquidity
         //uniswap v1에선 최초에 공급한 ETH량과 같게 LP를 발행했음.
         //v2부터는 ERC20-ERC20 페어도 지원, 그 중 작은 쪽을 기준으로 LP토큰을 발행.
+
+        //totalSupply이 컨트랙트의 LP토큰 총량. 0 이상이라면 liquidity가 있는 것.
         uint256 totalLiquidity = totalSupply();
 
         if (totalLiquidity > 0) {
-            //ETH와 페어인 토큰 또한 기존 풀의 비율을 유지할 만큼의 양을 공급해야 함.
+            //ETH와 페어인 토큰 또한 기존 풀의 GRAY/ETH비율을 유지할 만큼의 양을 공급해야 함.
 
+            //현 계약의 ETH 잔고 addres(this).balance
             uint256 ethReserve = address(this).balance - msg.value;
             uint256 tokenReserve = token.balanceOf(address(this));
             //공급된 ETH에 맞춰 채워야할 Token량
